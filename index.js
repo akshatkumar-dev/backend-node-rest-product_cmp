@@ -7,6 +7,47 @@ const nodemailer = require("nodemailer");
 const app = express();
 
 app.use(bodyParser.json())
+app.get("/api/getpdetails",async (req,res)=>{
+    let phone = req.query.name;
+    let newPhone = "";
+    for(let i = 0;i<phone.length;i++){
+        if(phone[i]=="("){break;}
+        newPhone+=phone[i];
+    }
+    newPhone = newPhone.toLowerCase();
+    let response = await axios.get(`https://www.gsmarena.com/res.php3?sSearch=${newPhone}`);
+    let data = response.data;
+    let parsedData = $(".makers a",data).toArray();
+    let names = [];
+    let urls = [];
+    parsedData.forEach(element=>{
+        names.push($(element).text().toLowerCase())
+        urls.push(element.attribs.href);
+    })
+    let maxIndex = 0;
+    let maxClosest = 0;
+    names.forEach((element,index)=>{
+        let closest = 0;
+        for(let i = 0;i<element.length;i++){
+            if(element[i] == newPhone[i]){closest++;}
+            else if(maxClosest < closest){
+                maxIndex = index;
+                maxClosest = closest;
+                break;
+            }
+        }
+    })
+    let url = urls[maxIndex];
+    let newResponse = await axios.get(`https://www.gsmarena.com/${url}`);
+    let newData = newResponse.data;
+    let toSend = {};
+    let info = $(".nfo",newData).toArray();
+    let title = $(".ttl",newData).toArray();
+    for(let i = 0;i<info.length;i++){
+        toSend[i.toString()] = {title: $(title[i]).text(),info: $(info[i]).text()}
+    }
+    res.send(toSend);
+})
 app.get("/api/getflap",async (req,res)=>{
     var min = req.query.min;
     var max = req.query.max;
