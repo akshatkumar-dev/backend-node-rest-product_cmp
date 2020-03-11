@@ -7,7 +7,32 @@ const nodemailer = require("nodemailer");
 const app = express();
 
 app.use(bodyParser.json())
-
+app.get("/api/getflap",async (req,res)=>{
+    var min = req.query.min;
+    var max = req.query.max;
+    let response = await axios.get(`https://www.flipkart.com/search?sid=6bo%2Cb5g&otracker=CLP_Filters&p[]=facets.price_range.from%3D${min}&p[]=facets.price_range.to%3D${max}`);
+    let data = response.data;
+    let names = $("._3wU53n",data).toArray();
+    let price = $("._1vC4OE._2rQ-NK",data).toArray()
+    var toSend = {}
+    for(let i = 0;i<names.length;i++){
+        toSend[i.toString()] = {name: $(names[i]).text(), price: $(price[i]).text()}
+    }
+    res.send(toSend)
+})
+app.get("/api/getalap",async (req,res)=>{
+    var min = req.query.min+"00";
+    var max = req.query.max+"00";
+    let response = await axios.get(`https://www.amazon.in/s?bbn=1375424031&rh=n%3A976392031%2Cn%3A%21976393031%2Cn%3A1375424031%2Cp_36%3A${min}-${max}&qid=1583935135&rnid=7252027031&ref=lp_1375424031_nr_p_36_5`);
+    let data = response.data;
+    let names = $(".a-size-medium.a-color-base.a-text-normal",data).toArray();
+    let price = $(".a-price-whole",data).toArray()
+    var toSend = {}
+    for(let i = 0;i<names.length;i++){
+        toSend[i.toString()] = {name: $(names[i]).text(), price: $(price[i]).text()}
+    }
+    res.send(toSend)
+})
 app.get("/api/getfphone",async (req,res)=>{
     var min = req.query.min;
     var max = req.query.max;
