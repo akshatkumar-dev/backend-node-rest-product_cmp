@@ -7,6 +7,22 @@ const nodemailer = require("nodemailer");
 const app = express();
 
 app.use(bodyParser.json())
+app.get("/api/getaldetails",async (req,res)=>{
+    let lap = req.query.name;
+    let response = await axios.get(`https://www.amazon.in/s?k=${lap}`)
+    let data = response.data;
+    let searchRes = $("h2 .a-link-normal",data).toArray();
+    let url = searchRes[0].attribs.href;
+    let newResponse = await axios.get(`https://www.amazon.in${url}`)
+    data = newResponse.data;
+    let title = $(".column.col1 .pdTab .label",data).toArray()
+    let info = $(".column.col1 .pdTab .value",data).toArray();
+    let toSend = {}
+    for(let i = 0;i<info.length;i++){
+        toSend[i.toString()] = {title: $(title[i]).text(),info: $(info[i]).text()}
+    }
+    res.send(toSend);
+})
 app.get("/api/getfldetails",async (req,res)=>{
     let lap = req.query.name;
     let response = await axios.get(`https://www.flipkart.com/search?q=${lap}`)
