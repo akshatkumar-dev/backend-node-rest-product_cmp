@@ -5,6 +5,7 @@ const axios = require("axios");
 const $ = require("cheerio");
 const mongoose = require("mongoose");
 const nodemailer = require("nodemailer");
+const bcrypt = require("bcryptjs");
 const app = express();
 
 let Schema = mongoose.Schema;
@@ -32,20 +33,53 @@ app.use(session({
     )
 )
 app.use(bodyParser.json())
-app.get("/api/login",(req,res)=>{
-    if(req.session["userId"]==null) {req.session["userId"] = req.sessionID;}
-    console.log(req.sessionID)
-    res.send("done")
+
+app.post("/api/login",async (req,res)=>{
+    let email = req.body["email"];
+    let password = req.body["password"];
+    let result = await User.find({email:email});
+    if(result.length==0){
+        res.send("User does not exist");
+    }
+    else{
+        let tryLogin = await bcrypt.compare(password,result[0]["password"]);
+        if(tryLogin){
+            req.session["userId"] = result[0]["_id"].toString();
+            res.send("Signed in");
+        }
+        else{
+            res.send("Invalid credentials");
+        }
+    }
+    
 })
-app.get("/api/register",async (req,res)=>{
-    let user = new User({
-        email: "fadsf",
-        password: "fjadsf",
-        lapcart:[{name:"fadf",vendor:"ajkfd"}],
-        mobcart: [{name:"hell"}]
-    })
-    await user.save();
-    res.send("data saved")
+// app.get("/api/update",async (req,res)=>{
+//     let result = await User.find({email:"randomStuff"});
+//     console.log(result)
+//     let x = result[0]["lapcart"];
+//     x.push({name:"something",vendor:"hello"})
+//     await User.update({email:"randomStuff"},{"$set":{
+//         lapcart: x
+//     }})
+//     res.send("updated");
+// })
+app.post("/api/register",async (req,res)=>{
+    let email = req.body["email"];
+    let password = req.body["password"];
+    let result = await User.find({email:email});
+    if(result.length != 0){
+        res.send("user exists");
+    }
+    else{
+        let hash = await bcrypt.hash(password,10);
+        let user = new User({
+            email: email,
+            password: hash,
+        })
+        let newUser = await user.save();
+        req.session["userId"] = newUser._id.toString();
+        res.send("data saved")
+    }
 })
 app.get("/api/getaldetails",async (req,res)=>{
     let lap = req.query.name;
