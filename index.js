@@ -1,12 +1,52 @@
 const express = require("express");
 const bodyParser = require("body-parser");
+const session = require("express-session");
 const axios = require("axios");
 const $ = require("cheerio");
 const mongoose = require("mongoose");
 const nodemailer = require("nodemailer");
 const app = express();
 
+let Schema = mongoose.Schema;
+let userSchema = new Schema({
+    email: String,
+    password: String,
+    lapcart: [
+        {
+            name: String,
+            vendor: String
+        }
+    ],
+    mobcart: [
+        {
+            name: String
+        }
+    ]
+});
+let User = mongoose.model("User", userSchema);
+app.use(session({
+    secret: "ajskld;fadfqrwr",
+    resave: false,
+    saveUninitialized: false
+        }
+    )
+)
 app.use(bodyParser.json())
+app.get("/api/login",(req,res)=>{
+    if(req.session["userId"]==null) {req.session["userId"] = req.sessionID;}
+    console.log(req.sessionID)
+    res.send("done")
+})
+app.get("/api/register",async (req,res)=>{
+    let user = new User({
+        email: "fadsf",
+        password: "fjadsf",
+        lapcart:[{name:"fadf",vendor:"ajkfd"}],
+        mobcart: [{name:"hell"}]
+    })
+    await user.save();
+    res.send("data saved")
+})
 app.get("/api/getaldetails",async (req,res)=>{
     let lap = req.query.name;
     let response = await axios.get(`https://www.amazon.in/s?k=${lap}`)
@@ -132,4 +172,9 @@ app.get("/api/getaphone",async(req,res)=>{
     }
     res.send(toSend);
 })
-app.listen(4000,()=>{console.log("Listening on port 4000")})
+mongoose.connect(`mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@cluster0-d1sks.mongodb.net/${process.env.MONGO_DB}?retryWrites=true&w=majority`,{useNewUrlParser:true,useUnifiedTopology: true}).then(()=>{
+    console.log("database connected");
+    app.listen(4000,()=>{console.log("Listening on port 4000")})
+}).catch(err=>{
+    console.log(err)
+})
