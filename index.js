@@ -20,7 +20,8 @@ let userSchema = new Schema({
     ],
     mobcart: [
         {
-            name: String
+            name: String,
+            vendor: String
         }
     ]
 });
@@ -32,8 +33,106 @@ app.use(session({
         }
     )
 )
-app.use(bodyParser.json())
+app.use(bodyParser.json());
 
+const middleware = (req,res,next)=>{
+    if(req.session["userId"] == null){res.send("not logged in");}
+    else{next();}
+}
+app.delete("/api/deletemobcart",middleware,async (req,res)=>{
+    let toDeleteName = req.body.name;
+    let toDeleteVendor = req.body.vendor;
+    let id = req.session["userId"];
+    let result = await User.findOne({_id:id});
+    if(result.length == 0){res.send("user does not exist")}
+    else{
+        let updated = [...result["mobcart"]];
+        for(let i = 0;i<updated.length;i++){
+            if(updated[i]["name"] == toDeleteName && updated[i]["vendor"]==toDeleteVendor){
+                updated.splice(i,1);
+                break;
+            }
+        }
+        await User.updateOne({_id:id},{"$set":{
+            mobcart: updated
+        }})
+        res.send("Value removed");
+    }
+})
+app.get("/api/getlapcart",middleware,async (req,res)=>{
+    let id = req.session["userId"];
+    let result = await User.findOne({_id: id});
+    let toSend = {}
+    let count = 0;
+    result["lapcart"].forEach(element=>{
+        toSend[count.toString()] = {name: element.name,vendor:element.vendor}
+        count++;
+    })
+    res.send(toSend);
+})
+app.delete("/api/deletelapcart",middleware,async (req,res)=>{
+    let toDeleteName = req.body.name;
+    let toDeleteVendor = req.body.vendor;
+    let id = req.session["userId"];
+    let result = await User.findOne({_id:id});
+    if(result.length == 0){res.send("user does not exist")}
+    else{
+        let updated = [...result["lapcart"]];
+        for(let i = 0;i<updated.length;i++){
+            if(updated[i]["name"] == toDeleteName && updated[i]["vendor"]==toDeleteVendor){
+                updated.splice(i,1);
+                break;
+            }
+        }
+        await User.updateOne({_id:id},{"$set":{
+            lapcart: updated
+        }})
+        res.send("Value removed");
+    }
+})
+app.get("/api/getlapcart",middleware,async (req,res)=>{
+    let id = req.session["userId"];
+    let result = await User.findOne({_id: id});
+    let toSend = {}
+    let count = 0;
+    result["lapcart"].forEach(element=>{
+        toSend[count.toString()] = {name: element.name,vendor:element.vendor}
+        count++;
+    })
+    res.send(toSend);
+})
+app.put("/api/addmobcart",middleware,async (req,res)=>{
+    if(req.session["userId"] == null){res.send("not logged in");}
+    else{
+        let id = req.session["userId"];
+        let details = req.body;
+        let result = await User.find({_id: id});
+        if(result.length == 0){res.send("User not found")}
+        else{
+            let updated = [...result[0]["mobcart"]];
+            updated.push(details);
+            await User.update({_id:id},{"$set":{
+                mobcart: updated
+            }})
+            res.send("updated")
+        }
+    }
+})
+app.put("/api/addlapcart",middleware,async (req,res)=>{
+        let id = req.session["userId"];
+        let details = req.body;
+        let result = await User.find({_id: id});
+        if(result.length == 0){res.send("User not found")}
+        else{
+            let updated = [...result[0]["lapcart"]];
+            updated.push(details);
+            await User.update({_id:id},{"$set":{
+                lapcart: updated
+            }})
+            res.send("updated")
+        }
+    
+})
 app.post("/api/login",async (req,res)=>{
     let email = req.body["email"];
     let password = req.body["password"];
@@ -53,16 +152,7 @@ app.post("/api/login",async (req,res)=>{
     }
     
 })
-// app.get("/api/update",async (req,res)=>{
-//     let result = await User.find({email:"randomStuff"});
-//     console.log(result)
-//     let x = result[0]["lapcart"];
-//     x.push({name:"something",vendor:"hello"})
-//     await User.update({email:"randomStuff"},{"$set":{
-//         lapcart: x
-//     }})
-//     res.send("updated");
-// })
+
 app.post("/api/register",async (req,res)=>{
     let email = req.body["email"];
     let password = req.body["password"];
