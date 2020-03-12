@@ -6,6 +6,7 @@ const $ = require("cheerio");
 const mongoose = require("mongoose");
 const nodemailer = require("nodemailer");
 const bcrypt = require("bcryptjs");
+const cors = require("cors");
 const app = express();
 
 var transporter = nodemailer.createTransport({
@@ -34,6 +35,7 @@ let userSchema = new Schema({
     ]
 });
 let User = mongoose.model("User", userSchema);
+app.use(cors());
 app.use(session({
     secret: "ajskld;fadfqrwr",
     resave: false,
@@ -42,7 +44,7 @@ app.use(session({
     )
 )
 app.use(bodyParser.json());
-
+app
 const middleware = (req,res,next)=>{
     if(req.session["userId"] == null){res.send("not logged in");}
     else{next();}
