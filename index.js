@@ -8,6 +8,14 @@ const nodemailer = require("nodemailer");
 const bcrypt = require("bcryptjs");
 const app = express();
 
+var transporter = nodemailer.createTransport({
+    service: process.env.MAIL_SERVICE,
+    auth: {
+        user: process.env.MAIL_ID,
+        pass: process.env.MAIL_PASSWORD
+    }
+})
+
 let Schema = mongoose.Schema;
 let userSchema = new Schema({
     email: String,
@@ -161,14 +169,42 @@ app.post("/api/register",async (req,res)=>{
         res.send("user exists");
     }
     else{
+        var otp  = 0; // container of otp
+            //generate random 6 digit otp
+            for(var i = 0;i<6;i++)
+            {
+                otp *= 10;
+                otp += Math.floor(Math.random()*10);
+            }
+        var mail = {
+            from: process.env.MAIL_ID,
+            to: email,
+            subject: "OTP Confirmation Product_cmp",
+            text: "Copy the OTP given and paste it into the input box " + otp
+        }
+        await transporter.sendMail(mail);
+        req.session["details"] = {email:email,password: password, otp: otp};
+        res.send("otp sent")
+    }
+})
+app.post("/api/confirmotp",async (req,res)=>{
+    let gotDetails = req.session["details"];
+    let email = gotDetails.email;
+    let password = gotDetails.password;
+    let otp = gotDetails.otp;
+    let gotOtp = req.body["otp"];
+    if(gotOtp == otp){
         let hash = await bcrypt.hash(password,10);
-        let user = new User({
-            email: email,
-            password: hash,
-        })
-        let newUser = await user.save();
-        req.session["userId"] = newUser._id.toString();
-        res.send("data saved")
+            let user = new User({
+                email: email,
+                password: hash,
+            })
+            let newUser = await user.save();
+            req.session["userId"] = newUser._id.toString();
+            res.send("data saved")
+    }
+    else{
+        res.send("wrong otp");
     }
 })
 app.get("/api/getaldetails",async (req,res)=>{
