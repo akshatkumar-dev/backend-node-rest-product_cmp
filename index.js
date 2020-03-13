@@ -62,8 +62,8 @@ const middleware = (req,res,next)=>{
     return next();
 }
 app.delete("/api/deletemobcart",middleware,async (req,res)=>{
-    let toDeleteName = req.body.name;
-    let toDeleteVendor = req.body.vendor;
+    let toDeleteName = req.query.name;
+    let toDeleteVendor = req.query.vendor;
     let id = req.userId;
     let result = await User.findOne({_id:id});
     if(result.length == 0){res.send("user does not exist")}
@@ -81,20 +81,20 @@ app.delete("/api/deletemobcart",middleware,async (req,res)=>{
         res.send("Value removed");
     }
 })
-app.get("/api/getlapcart",middleware,async (req,res)=>{
+app.get("/api/getmobcart",middleware,async (req,res)=>{
     let id = req.userId;
     let result = await User.findOne({_id: id});
     let toSend = {}
     let count = 0;
-    result["lapcart"].forEach(element=>{
+    result["mobcart"].forEach(element=>{
         toSend[count.toString()] = {name: element.name,vendor:element.vendor}
         count++;
     })
     res.send(toSend);
 })
 app.delete("/api/deletelapcart",middleware,async (req,res)=>{
-    let toDeleteName = req.body.name;
-    let toDeleteVendor = req.body.vendor;
+    let toDeleteName = req.query.name;
+    let toDeleteVendor = req.query.vendor;
     let id = req.userId;
     let result = await User.findOne({_id:id});
     if(result.length == 0){res.send("user does not exist")}
