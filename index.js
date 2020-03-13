@@ -1,15 +1,16 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const session = require("express-session");
 const axios = require("axios");
 const $ = require("cheerio");
 const mongoose = require("mongoose");
 const nodemailer = require("nodemailer");
 const bcrypt = require("bcryptjs");
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
 const app = express();
 
-var transporter = nodemailer.createTransport({
+let usersArray = {};
+let transporter = nodemailer.createTransport({
     service: process.env.MAIL_SERVICE,
     auth: {
         user: process.env.MAIL_ID,
@@ -36,23 +37,34 @@ let userSchema = new Schema({
 });
 let User = mongoose.model("User", userSchema);
 app.use(cors());
-app.use(session({
-    secret: "ajskld;fadfqrwr",
-    resave: false,
-    saveUninitialized: false
-        }
-    )
-)
+
 app.use(bodyParser.json());
 app
 const middleware = (req,res,next)=>{
-    if(req.session["userId"] == null){res.send("not logged in");}
-    else{next();}
+    const authHeader = req.get("Authorization");
+    if(!authHeader){
+        return (res.send("No"))
+    }
+    const token = authHeader.split(" ")[1]
+    if(!token || token===""){
+        return (res.send("No"));
+    }
+    let decodedToken;
+    try{
+        decodedToken = jwt.verify(token,process.env.SIGNING_KEY);
+    }catch(err){
+        return (res.send("No"))
+    }
+    if(!decodedToken){
+        return (res.send("No"))
+    }
+    req.userId = decodedToken.userId
+    return next();
 }
 app.delete("/api/deletemobcart",middleware,async (req,res)=>{
     let toDeleteName = req.body.name;
     let toDeleteVendor = req.body.vendor;
-    let id = req.session["userId"];
+    let id = req.userId;
     let result = await User.findOne({_id:id});
     if(result.length == 0){res.send("user does not exist")}
     else{
@@ -70,7 +82,7 @@ app.delete("/api/deletemobcart",middleware,async (req,res)=>{
     }
 })
 app.get("/api/getlapcart",middleware,async (req,res)=>{
-    let id = req.session["userId"];
+    let id = req.userId;
     let result = await User.findOne({_id: id});
     let toSend = {}
     let count = 0;
@@ -83,7 +95,7 @@ app.get("/api/getlapcart",middleware,async (req,res)=>{
 app.delete("/api/deletelapcart",middleware,async (req,res)=>{
     let toDeleteName = req.body.name;
     let toDeleteVendor = req.body.vendor;
-    let id = req.session["userId"];
+    let id = req.userId;
     let result = await User.findOne({_id:id});
     if(result.length == 0){res.send("user does not exist")}
     else{
@@ -101,7 +113,7 @@ app.delete("/api/deletelapcart",middleware,async (req,res)=>{
     }
 })
 app.get("/api/getlapcart",middleware,async (req,res)=>{
-    let id = req.session["userId"];
+    let id = req.userId;
     let result = await User.findOne({_id: id});
     let toSend = {}
     let count = 0;
@@ -112,9 +124,7 @@ app.get("/api/getlapcart",middleware,async (req,res)=>{
     res.send(toSend);
 })
 app.put("/api/addmobcart",middleware,async (req,res)=>{
-    if(req.session["userId"] == null){res.send("not logged in");}
-    else{
-        let id = req.session["userId"];
+        let id = req.userId;
         let details = req.body;
         let result = await User.find({_id: id});
         if(result.length == 0){res.send("User not found")}
@@ -126,10 +136,10 @@ app.put("/api/addmobcart",middleware,async (req,res)=>{
             }})
             res.send("updated")
         }
-    }
+    
 })
 app.put("/api/addlapcart",middleware,async (req,res)=>{
-        let id = req.session["userId"];
+        let id = req.userId
         let details = req.body;
         let result = await User.find({_id: id});
         if(result.length == 0){res.send("User not found")}
@@ -153,8 +163,8 @@ app.post("/api/login",async (req,res)=>{
     else{
         let tryLogin = await bcrypt.compare(password,result[0]["password"]);
         if(tryLogin){
-            req.session["userId"] = result[0]["_id"].toString();
-            res.send("Signed in");
+            let token = jwt.sign({userId: result[0]["_id"].toString()},process.env.SIGNING_KEY,{expiresIn:"1h"});
+            res.send(token);
         }
         else{
             res.send("Invalid credentials");
@@ -185,15 +195,14 @@ app.post("/api/register",async (req,res)=>{
             text: "Copy the OTP given and paste it into the input box " + otp
         }
         await transporter.sendMail(mail);
-        req.session["details"] = {email:email,password: password, otp: otp};
+        usersArray[email] = otp;
         res.send("otp sent")
     }
 })
 app.post("/api/confirmotp",async (req,res)=>{
-    let gotDetails = req.session["details"];
-    let email = gotDetails.email;
-    let password = gotDetails.password;
-    let otp = gotDetails.otp;
+    let email = req.body["email"];
+    let password = req.body["password"];
+    let otp = usersArray[email];
     let gotOtp = req.body["otp"];
     if(gotOtp == otp){
         let hash = await bcrypt.hash(password,10);
@@ -202,8 +211,9 @@ app.post("/api/confirmotp",async (req,res)=>{
                 password: hash,
             })
             let newUser = await user.save();
-            req.session["userId"] = newUser._id.toString();
-            res.send("data saved")
+            delete usersArray[email]
+            let token = jwt.sign({userId: newUser["_id"].toString()},process.env.SIGNING_KEY,{expiresIn:"1h"});
+            res.send(token);
     }
     else{
         res.send("wrong otp");
@@ -229,7 +239,7 @@ app.get("/api/getfldetails",async (req,res)=>{
     let lap = req.query.name;
     let response = await axios.get(`https://www.flipkart.com/search?q=${lap}`)
     let data = response.data;
-    let searchRes = $(".Zhf2z-",data).toArray();
+    let searchRes = $("a[target=_blank]",data).toArray();
     let url = searchRes[0].attribs.href;
     let newResponse = await axios.get(`https://www.flipkart.com${url}`)
     data = newResponse.data;
