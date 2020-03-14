@@ -25,13 +25,15 @@ let userSchema = new Schema({
     lapcart: [
         {
             name: String,
-            vendor: String
+            vendor: String,
+            price: String
         }
     ],
     mobcart: [
         {
             name: String,
-            vendor: String
+            vendor: String,
+            price: String
         }
     ]
 });
@@ -87,7 +89,7 @@ app.get("/api/getmobcart",middleware,async (req,res)=>{
     let toSend = {}
     let count = 0;
     result["mobcart"].forEach(element=>{
-        toSend[count.toString()] = {name: element.name,vendor:element.vendor}
+        toSend[count.toString()] = {name: element.name,vendor:element.vendor,price:element.price}
         count++;
     })
     res.send(toSend);
@@ -118,7 +120,7 @@ app.get("/api/getlapcart",middleware,async (req,res)=>{
     let toSend = {}
     let count = 0;
     result["lapcart"].forEach(element=>{
-        toSend[count.toString()] = {name: element.name,vendor:element.vendor}
+        toSend[count.toString()] = {name: element.name,vendor:element.vendor,price:element.price}
         count++;
     })
     res.send(toSend);
